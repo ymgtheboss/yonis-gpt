@@ -1,6 +1,5 @@
 import json
 import os
-import time
 
 import flet as ft
 import httpx
@@ -29,7 +28,6 @@ async def main(page: ft.Page):
     page.title = "yonis gpt"
     page.bgcolor = "#F7F5F0"
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.theme = ft.Theme(color_scheme_seed="#BC6247")
     page.window.width, page.window.height = 900, 700
     page.window.min_width, page.window.min_height = 600, 500
 
@@ -52,20 +50,16 @@ async def main(page: ft.Page):
 
 
     def show_message(role, content):
-
-        text = ft.Markdown(content, selectable=True, extension_set=ft.MarkdownExtensionSet.GITHUB_WEB)
+        text = ft.Text(content, selectable=True)
+        name = "You" if role == "user" else "yonis gpt"
+        color = "#ECE8DF" if role == "user" else "white"
         messages.controls.append(ft.Container(
-            padding=15, border_radius=12, bgcolor="#ECE8DF" if role == "user" else "white",
-            content=ft.Column([ft.Text("You" if role == "user" else "yonis gpt", size=12,
-                                        weight=ft.FontWeight.W_600), text], spacing=8)))
+            bgcolor=color,
+            padding=15,
+            border_radius=12,
+            content=ft.Column([ft.Text(name), text]),
+        ))
         return text
-
-    def show_chat(chat):
-        title.value = chat.get("title", "New conversation")
-        messages.controls.clear()
-
-        for message in chat.get("messages", []):
-            show_message(message["role"], message["content"])
 
     def new_chat(e):
         nonlocal current_chat
@@ -94,12 +88,12 @@ async def main(page: ft.Page):
             if not current_chat:
                 chat = await request("/chats", {"title": content[:70]})
                 current_chat = chat["id"]
-                show_chat(chat)
+                title.value = chat.get("title", "New conversation")
 
             show_message("user", content)
             answer = show_message("assistant", "Thinking…")
             page.update()
-            full, last_update, finished = "", 0, False
+            full, finished = "", False
             async with httpx.AsyncClient(timeout=httpx.Timeout(300, connect=15), trust_env=False) as client:
                 async with client.stream("POST", f"{API}/chats/{current_chat}/messages",
                                          json={"content": content}) as response:
@@ -112,10 +106,9 @@ async def main(page: ft.Page):
                             raise RuntimeError(item["error"])
                         full += item.get("delta", "")
 
-                        if time.monotonic() - last_update > 0.07:
+                        if item.get("delta"):
                             answer.value = full
                             page.update()
-                            last_update = time.monotonic()
                         if item.get("done"):
                             if not item.get("saved"):
                                 raise RuntimeError("Qwen returned no answer. Try again.")
@@ -141,11 +134,6 @@ async def main(page: ft.Page):
         finally:
             busy = False
             send_button.disabled = False
-            try:
-                if current_chat:
-                    show_chat(await request("/chats/" + current_chat))
-            except Exception:
-                pass
             page.update()
 
 

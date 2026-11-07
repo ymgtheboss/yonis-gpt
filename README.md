@@ -6,7 +6,7 @@ Yonis GPT is a desktop chat app built with Python and Flet. It connects to an AI
 
 - Send a message and see the AI's answer appear as it is generated.
 - Start a new conversation whenever you want.
-- Display messages with Markdown formatting.
+- Display messages as selectable text.
 - Show connection and request errors in the app.
 
 ## Dependencies
